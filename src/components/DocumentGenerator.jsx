@@ -1,7 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import html2pdf from 'html2pdf.js';
 
 // Document Generator Component
 export default function DocumentGenerator() {
+	const navigate = useNavigate();
 	// State variables
 	const [templates, setTemplates] = useState([]);
 	const [selectedTemplate, setSelectedTemplate] = useState('');
@@ -12,6 +17,17 @@ export default function DocumentGenerator() {
 	const [fieldValues, setFieldValues] = useState({});
 	const [generatedDocument, setGeneratedDocument] = useState(null);
 	const [error, setError] = useState('');
+	const [editedContent, setEditedContent] = useState('');
+	const [isEditing, setIsEditing] = useState(false);
+	const markdownRef = useRef(null);
+
+	// Add user verification
+	useEffect(() => {
+		const user = JSON.parse(localStorage.getItem('user'));
+		if (!user || user.usertype !== 'teacher') {
+			navigate('/login');
+		}
+	}, [navigate]);
 
 	// Official languages of India
 	const indianLanguages = [
@@ -148,8 +164,45 @@ export default function DocumentGenerator() {
 		</div>
 	);
 
+	// Update editedContent when generatedDocument changes
+	useEffect(() => {
+		if (generatedDocument) {
+			setEditedContent(generatedDocument.content);
+		}
+	}, [generatedDocument]);
+
+	// Handle content edits
+	const handleContentEdit = (e) => {
+		const content = e.target.value;
+		setEditedContent(content);
+		setGeneratedDocument(prev => ({
+			...prev,
+			content: content
+		}));
+	};
+
+	// Toggle edit mode
+	const toggleEditMode = () => {
+		setIsEditing(!isEditing);
+	};
+
+	const handleDownload = async () => {
+		if (!markdownRef.current) return;
+
+		const element = markdownRef.current;
+		const opt = {
+			margin: [10, 10],
+			filename: `${generatedDocument.template_used}_${generatedDocument.language}.pdf`,
+			image: { type: 'jpeg', quality: 0.98 },
+			html2canvas: { scale: 2 },
+			jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+		};
+
+		html2pdf().set(opt).from(element).save();
+	};
+
 	return (
-		<div className="container py-4">
+		<div className="container py-4 px-4" style={{ minWidth: '70vw', maxWidth: '100vw' }}>
 			<div className="row">
 				<div className="col-12">
 					<div className="card shadow">
@@ -334,66 +387,107 @@ export default function DocumentGenerator() {
 								<div className="mt-4">
 									<div className="card">
 										<div className="card-header bg-success text-white d-flex justify-content-between align-items-center">
-											<h4 className="mb-0">
-												Generated Document
-											</h4>
-											<button
-												className="btn btn-sm btn-light"
-												onClick={() => {
-													const blob = new Blob(
-														[
-															generatedDocument.content,
-														],
-														{ type: 'text/plain' }
-													);
-													const url =
-														URL.createObjectURL(
-															blob
-														);
-													const a =
-														document.createElement(
-															'a'
-														);
-													a.href = url;
-													a.download = `${generatedDocument.template_used}_${generatedDocument.language}.txt`;
-													a.click();
-												}}
-											>
-												Download
-											</button>
+											<h4 className="mb-0">Generated Document</h4>
+											<div>
+												<button
+													className="btn btn-sm btn-light me-2"
+													onClick={toggleEditMode}
+												>
+													{isEditing ? 'Preview' : 'Edit'}
+												</button>
+												<button
+													className="btn btn-sm btn-light"
+													onClick={handleDownload}
+												>
+													Download PDF
+												</button>
+											</div>
 										</div>
 										<div className="card-body">
 											<div className="mb-3">
 												<div className="badge bg-primary me-2">
-													Template:{' '}
-													{
-														generatedDocument
-															.metadata
-															.template_name
-													}
+													Template: {generatedDocument.metadata.template_name}
 												</div>
 												<div className="badge bg-secondary me-2">
-													Language:{' '}
-													{generatedDocument.language}
+													Language: {generatedDocument.language}
 												</div>
 												<div className="badge bg-info">
-													Tone:{' '}
-													{
-														generatedDocument.formality
-													}
+													Tone: {generatedDocument.formality}
 												</div>
 											</div>
 
 											<div className="p-3 bg-light border rounded">
-												<pre
-													className="mb-0"
-													style={{
-														whiteSpace: 'pre-wrap',
-														fontFamily: 'inherit',
-													}}
-												>
-													{generatedDocument.content}
-												</pre>
+												{isEditing ? (
+													<textarea
+														className="form-control"
+														style={{
+															minHeight: '200px',
+															fontFamily: 'monospace',
+															whiteSpace: 'pre-wrap',
+															resize: 'vertical'
+														}}
+														value={editedContent || generatedDocument.content}
+														onChange={handleContentEdit}
+													/>
+												) : (
+													<div className="markdown-content" ref={markdownRef}>
+														<ReactMarkdown 
+															remarkPlugins={[remarkGfm]}
+															breaks={true}
+															components={{
+																h1: ({node, ...props}) => <h1 style={{color: '#2c3e50', marginBottom: '1rem'}} {...props} />,
+																h2: ({node, ...props}) => <h2 style={{color: '#2c3e50', marginBottom: '1rem'}} {...props} />,
+																h3: ({node, ...props}) => <h3 style={{color: '#2c3e50', marginBottom: '1rem'}} {...props} />,
+																p: ({node, ...props}) => (
+																	<p 
+																		style={{
+																			lineHeight: '1.6',
+																			marginBottom: '1rem',
+																			textAlign: 'justify'
+																		}} 
+																		{...props} 
+																	/>
+																),
+																ul: ({node, ...props}) => <ul style={{marginLeft: '20px', marginBottom: '1rem'}} {...props} />,
+																ol: ({node, ...props}) => <ol style={{marginLeft: '20px', marginBottom: '1rem'}} {...props} />,
+																blockquote: ({node, ...props}) => (
+																	<blockquote 
+																		style={{
+																			borderLeft: '4px solid #718096',
+																			paddingLeft: '1rem',
+																			fontStyle: 'italic',
+																			marginBottom: '1rem'
+																		}} 
+																		{...props} 
+																	/>
+																),
+																code: ({node, inline, ...props}) => (
+																	<code
+																		style={{
+																			backgroundColor: '#f1f1f1',
+																			padding: inline ? '2px 4px' : '1rem',
+																			borderRadius: '4px',
+																			fontSize: '0.9em',
+																			display: inline ? 'inline' : 'block',
+																			marginBottom: inline ? 0 : '1rem'
+																		}}
+																		{...props}
+																	/>
+																),
+																br: ({node, ...props}) => (
+																	<br 
+																		style={{
+																			marginBottom: '0.5rem'
+																		}}
+																		{...props}
+																	/>
+																)
+															}}
+														>
+															{editedContent || generatedDocument.content}
+														</ReactMarkdown>
+													</div>
+												)}
 											</div>
 										</div>
 									</div>

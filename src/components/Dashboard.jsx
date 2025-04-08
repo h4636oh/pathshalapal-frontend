@@ -66,7 +66,7 @@ const Dashboard = () => {
 						onClick={handleLogout}
 						style={{ fontSize: '1.5rem' }}
 					>
-						<i className="fas fa-user-circle"></i>
+						<i class="fa-solid fa-right-from-bracket"></i>{' '}
 					</button>
 				</div>
 
