@@ -8,6 +8,7 @@ import {
 import LoginForm from './components/LoginForm';
 import Dashboard from './components/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import DocumentGenerator from './components/DocumentGenerator';
 import './App.css';
 
 const App = () => {
@@ -22,7 +23,13 @@ const App = () => {
 							<Dashboard />
 						</ProtectedRoute>
 				} />
+				<Route path="/document-generator" element={
+						<ProtectedRoute>
+							<DocumentGenerator />
+						</ProtectedRoute>
+				} />	
 				<Route path="*" element={<Navigate to="/login" replace />} />
+
 			</Routes>
 		</Router>
 	);
