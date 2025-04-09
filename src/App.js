@@ -9,6 +9,7 @@ import LoginForm from './components/LoginForm';
 import Dashboard from './components/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import DocumentGenerator from './components/DocumentGenerator';
+import QuizGenerator from './components/QuizGenerator';
 import './App.css';
 
 const App = () => {
@@ -26,6 +27,11 @@ const App = () => {
 				<Route path="/document-generator" element={
 						<ProtectedRoute>
 							<DocumentGenerator />
+						</ProtectedRoute>
+				} />
+				<Route path="/quiz-generator" element={
+						<ProtectedRoute>
+							<QuizGenerator />
 						</ProtectedRoute>
 				} />	
 				<Route path="*" element={<Navigate to="/login" replace />} />
